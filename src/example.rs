@@ -7,6 +7,9 @@ use crate::{
     utility2d::{Initialize, StorageType, Update, UpdateAction, UpdateInfo},
 };
 
+pub const WINDOW_WIDTH: u32 = 800;
+pub const WINDOW_HEIGHT: u32 = 600;
+
 const SPEED: f32 = 300.0;
 
 struct Logo {
@@ -28,6 +31,7 @@ pub struct ExampleScene<C, I> {
     logo: Option<Logo>,
 
     music: Option<Ticket>,
+    oob: Option<Ticket>,
 
     phantom: PhantomData<(C, I)>,
 }
@@ -46,6 +50,7 @@ impl<C, I> ExampleScene<C, I> {
             logo: None,
 
             music: None,
+            oob: None,
 
             phantom: PhantomData,
         }
@@ -73,12 +78,18 @@ where
                 .content
                 .get_ticket_with_key(&StorageType::Texture, "Logo.png")
                 .unwrap(),
-            position: (400.0, 300.0),
+            position: (WINDOW_WIDTH as f32 * 0.5, WINDOW_HEIGHT as f32 * 0.5),
         });
 
         self.music = Some(
             init.content
                 .get_ticket_with_key(&StorageType::Music, "Music.wav")
+                .unwrap(),
+        );
+
+        self.oob = Some(
+            init.content
+                .get_ticket_with_key(&StorageType::Sound, "OoB.wav")
                 .unwrap(),
         );
     }
@@ -95,7 +106,10 @@ where
             }
         }
 
-        let direction = (0.0, -SPEED * delta as f32);
+        self.direction = (0.0, 1.0);
+
+        let multiplier = -SPEED * delta as f32;
+        let direction = (self.direction.0 * multiplier, self.direction.1 * multiplier);
 
         if let Some(logo) = &mut self.logo {
             let position = logo.position;
@@ -115,6 +129,19 @@ where
             {
                 logo.position = (position.0 - direction.0, position.1 - direction.1);
             }
+
+            if logo.position.0 < 0.0
+                || logo.position.0 > WINDOW_WIDTH as f32
+                || logo.position.1 < 0.0
+                || logo.position.1 > WINDOW_HEIGHT as f32
+            {
+                actions.push(UpdateAction::PlaySound(self.oob.unwrap(), 0.25));
+            }
+
+            logo.position = (
+                logo.position.0.clamp(0.0, WINDOW_WIDTH as f32),
+                logo.position.1.clamp(0.0, WINDOW_HEIGHT as f32),
+            );
         }
 
         actions

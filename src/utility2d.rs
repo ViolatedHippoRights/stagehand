@@ -47,4 +47,5 @@ pub enum UpdateInfo {
 
 pub enum UpdateAction {
     PlayMusic(Ticket, i32, f32),
+    PlaySound(Ticket, f32),
 }

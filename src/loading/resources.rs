@@ -1,4 +1,6 @@
-use std::{borrow::Borrow, collections::HashMap, hash::Hash, rc::Rc, string::ToString};
+use std::{
+    borrow::Borrow, cell::RefCell, collections::HashMap, hash::Hash, rc::Rc, string::ToString,
+};
 use uuid::Uuid;
 
 use super::{ResourceError, Ticket};
@@ -15,7 +17,7 @@ where
     L: 'a + ResourceLoader<'a, R>,
 {
     loader: &'a L,
-    store: Vec<Rc<R>>,
+    store: Vec<Rc<RefCell<R>>>,
     map: HashMap<K, usize>,
 
     num_locks: u32,
@@ -57,13 +59,14 @@ where
             return Err(ResourceLoadError::AlreadyExists(key.to_string()));
         }
 
-        self.store.push(Rc::new(self.loader.load(args)?));
+        self.store
+            .push(Rc::new(RefCell::new(self.loader.load(args)?)));
         self.map.insert(key, self.store.len() - 1);
 
         Ok(())
     }
 
-    pub fn get_by_key<KB>(&self, key: &KB) -> Result<Rc<R>, ResourceError>
+    pub fn get_by_key<KB>(&self, key: &KB) -> Result<Rc<RefCell<R>>, ResourceError>
     where
         KB: Hash + Eq + ToString + ?Sized,
         K: Borrow<KB>,
@@ -89,7 +92,7 @@ where
         }
     }
 
-    pub fn get_by_ticket(&self, ticket: Ticket) -> Result<Rc<R>, ResourceError> {
+    pub fn get_by_ticket(&self, ticket: Ticket) -> Result<Rc<RefCell<R>>, ResourceError> {
         if !self.locked {
             return Err(ResourceError::StorageUnlocked);
         }
@@ -105,7 +108,7 @@ where
         Ok(self.store[ticket.index].clone())
     }
 
-    pub fn get_by_ticket_unchecked(&self, ticket: Ticket) -> Rc<R> {
+    pub fn get_by_ticket_unchecked(&self, ticket: Ticket) -> Rc<RefCell<R>> {
         self.store[ticket.index].clone()
     }
 }
