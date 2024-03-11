@@ -7,14 +7,14 @@ pub mod utility2d;
 #[cfg(feature = "draw2d")]
 pub mod draw;
 
+#[cfg(feature = "example")]
+pub mod example;
+
 #[cfg(feature = "input")]
 pub mod input;
 
 #[cfg(feature = "loading")]
 pub mod loading;
-
-#[cfg(feature = "sdl2")]
-pub mod sdl2;
 
 use scene::Scene;
 

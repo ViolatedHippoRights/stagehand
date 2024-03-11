@@ -12,22 +12,11 @@ log = "0.4"
 default = []
 2d = ["draw2d", "input"]
 draw2d = ["loading"]
+example = ["2d"]
 input = []
 loading = ["dep:uuid"]
-sdl2 = ["dep:sdl2", "2d", "input", "loading"]
-web = []
-
-[dependencies.sdl2]
-version = "0.36"
-optional = true
-default-features = false
-features = ["ttf", "image", "mixer"]
 
 [dependencies.uuid]
 version = "1.7.0"
 optional = true
 features = ["v4", "fast-rng"]
-
-[[example]]
-required-features = ["sdl2"]
-name = "sdl2"
