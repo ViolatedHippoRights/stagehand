@@ -25,20 +25,26 @@ impl fmt::Display for StorageType {
     }
 }
 
-pub struct Initialize<I, C> {
+pub struct Initialize<I, S, C> {
     pub input: InputMap<I>,
+    pub storage: S,
     pub content: C,
 }
 
-impl<I, C> Initialize<I, C> {
-    pub fn new(input: InputMap<I>, content: C) -> Self {
-        Initialize { input, content }
+impl<I, S, C> Initialize<I, S, C> {
+    pub fn new(input: InputMap<I>, storage: S, content: C) -> Self {
+        Initialize {
+            input,
+            storage,
+            content,
+        }
     }
 }
 
-pub struct Update<C> {
-    pub input: InputMap<C>,
+pub struct Update<I, C> {
+    pub input: InputMap<I>,
     pub info: Vec<UpdateInfo>,
+    pub content: C,
 }
 
 pub enum UpdateInfo {

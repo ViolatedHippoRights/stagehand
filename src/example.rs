@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 
 use crate::{
     draw::{Draw, DrawBatch, DrawData},
+    input::ActionType,
     loading::{Ticket, TicketManager},
     scene::Scene,
     utility2d::{Initialize, StorageType, Update, UpdateAction, UpdateInfo},
@@ -24,7 +25,7 @@ struct PlayerControls {
     pause: usize,
 }
 
-pub struct ExampleScene<C, I> {
+pub struct ExampleScene<I, S> {
     controls: PlayerControls,
     direction: (f32, f32),
 
@@ -33,10 +34,10 @@ pub struct ExampleScene<C, I> {
     music: Option<Ticket>,
     oob: Option<Ticket>,
 
-    phantom: PhantomData<(C, I)>,
+    phantom: PhantomData<(I, S)>,
 }
 
-impl<C, I> ExampleScene<C, I> {
+impl<I, S> ExampleScene<I, S> {
     pub fn new() -> Self {
         ExampleScene {
             controls: PlayerControls {
@@ -57,12 +58,12 @@ impl<C, I> ExampleScene<C, I> {
     }
 }
 
-impl<C, I> Scene for ExampleScene<C, I>
+impl<I, S> Scene for ExampleScene<I, S>
 where
-    C: TicketManager<StorageType, StorageType, String, str>,
+    S: TicketManager<StorageType, StorageType, String, str>,
 {
-    type Initialize = Initialize<I, C>;
-    type Update = Update<I>;
+    type Initialize = Initialize<I, S, ()>;
+    type Update = Update<I, ()>;
     type Draw = ();
     type UpdateBatch = Vec<UpdateAction>;
     type DrawBatch = DrawBatch<Draw, ()>;
@@ -75,20 +76,20 @@ where
 
         self.logo = Some(Logo {
             texture: init
-                .content
+                .storage
                 .get_ticket_with_key(&StorageType::Texture, "Logo.png")
                 .unwrap(),
             position: (WINDOW_WIDTH as f32 * 0.5, WINDOW_HEIGHT as f32 * 0.5),
         });
 
         self.music = Some(
-            init.content
+            init.storage
                 .get_ticket_with_key(&StorageType::Music, "Music.wav")
                 .unwrap(),
         );
 
         self.oob = Some(
-            init.content
+            init.storage
                 .get_ticket_with_key(&StorageType::Sound, "OoB.wav")
                 .unwrap(),
         );
@@ -102,17 +103,26 @@ where
                 UpdateInfo::MusicStopped => {
                     actions.push(UpdateAction::PlayMusic(self.music.unwrap(), -1, 0.25))
                 }
-                _ => {}
             }
         }
 
-        self.direction = (0.0, 1.0);
-
-        let multiplier = -SPEED * delta as f32;
-        let direction = (self.direction.0 * multiplier, self.direction.1 * multiplier);
-
         if let Some(logo) = &mut self.logo {
             let position = logo.position;
+
+            self.direction = (0.0, 1.0);
+
+            if let ActionType::Analog { x, y } = update.input.users[0]
+                .get_action_by_index(self.controls.look)
+                .unwrap()
+            {
+                let (relative_x, relative_y) = (x - position.0, y - position.1);
+                let length = f32::sqrt(relative_x * relative_x + relative_y * relative_y);
+
+                self.direction = (relative_x / length, relative_y / length);
+            }
+
+            let multiplier = SPEED * delta as f32;
+            let direction = (self.direction.0 * multiplier, self.direction.1 * multiplier);
 
             if update.input.users[0]
                 .get_action_by_index(self.controls.forward)
@@ -135,7 +145,7 @@ where
                 || logo.position.1 < 0.0
                 || logo.position.1 > WINDOW_HEIGHT as f32
             {
-                actions.push(UpdateAction::PlaySound(self.oob.unwrap(), 0.25));
+                actions.push(UpdateAction::PlaySound(self.oob.unwrap(), 1.0));
             }
 
             logo.position = (
@@ -147,13 +157,21 @@ where
         actions
     }
 
-    fn draw(&self, draw: &Self::Draw, interp: f64) -> Self::DrawBatch {
+    fn draw(&self, _draw: &Self::Draw, _interp: f64) -> Self::DrawBatch {
         let mut batch = DrawBatch::new(());
 
         if let Some(logo) = &self.logo {
+            let angle =
+                (self.direction.1.atan2(self.direction.0) * 180.0 / std::f32::consts::PI) + 90.0;
+
             batch.instructions.push(Draw {
                 ticket: logo.texture,
-                data: DrawData::draw_rotated_at(logo.position.0, logo.position.1, 0.0, (0.5, 0.5)),
+                data: DrawData::draw_rotated_at(
+                    logo.position.0,
+                    logo.position.1,
+                    angle,
+                    (0.5, 0.5),
+                ),
             });
         }
 
