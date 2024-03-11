@@ -10,7 +10,7 @@ log = "0.4"
 
 [features]
 default = []
-2d = ["draw2d"]
+2d = ["draw2d", "input"]
 draw2d = ["loading"]
 input = []
 loading = ["dep:uuid"]

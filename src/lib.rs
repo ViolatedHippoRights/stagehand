@@ -1,6 +1,9 @@
 pub mod app;
 pub mod scene;
 
+#[cfg(feature = "2d")]
+pub mod utility2d;
+
 #[cfg(feature = "draw2d")]
 pub mod draw;
 
@@ -40,7 +43,7 @@ impl<'a, I, U, UB, D, DB> Stage<'a, I, U, UB, D, DB> {
             let mut batches = Vec::new();
 
             let mut i = self.scenes.len() - 1;
-            self.scenes[i].update(update, delta);
+            batches.push(self.scenes[i].update(update, delta));
 
             while i > 0 && !self.scenes[i].blocking() {
                 i -= 1;

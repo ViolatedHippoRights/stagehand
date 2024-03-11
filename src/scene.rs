@@ -5,7 +5,7 @@ pub trait Scene {
     type Draw;
     type DrawBatch;
 
-    fn initialize(&mut self, init: &Self::Initialize);
+    fn initialize(&mut self, init: &mut Self::Initialize);
 
     fn update(&mut self, update: &Self::Update, delta: f64) -> Self::UpdateBatch;
 

@@ -4,9 +4,6 @@ use uuid::Uuid;
 
 pub mod resources;
 
-#[cfg(feature = "2d")]
-pub mod utility2d;
-
 #[derive(Clone, Copy)]
 pub struct Ticket {
     index: usize,

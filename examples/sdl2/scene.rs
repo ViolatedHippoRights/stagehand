@@ -2,9 +2,9 @@ use std::marker::PhantomData;
 
 use stagehand::{
     draw::{Draw, DrawBatch, DrawData},
-    input::{InputActions, InputMap},
-    loading::{utility2d::StorageType, Ticket, TicketManager},
+    loading::{Ticket, TicketManager},
     scene::Scene,
+    utility2d::{Initialize, StorageType, Update, UpdateAction, UpdateInfo},
 };
 
 const SPEED: f32 = 300.0;
@@ -27,6 +27,8 @@ pub struct ExampleScene<C, I> {
 
     logo: Option<Logo>,
 
+    music: Option<Ticket>,
+
     phantom: PhantomData<(C, I)>,
 }
 
@@ -43,6 +45,8 @@ impl<C, I> ExampleScene<C, I> {
 
             logo: None,
 
+            music: None,
+
             phantom: PhantomData,
         }
     }
@@ -52,41 +56,59 @@ impl<C, I> Scene for ExampleScene<C, I>
 where
     C: TicketManager<StorageType, StorageType, String, str>,
 {
-    type Initialize = (InputMap<I>, C);
-    type Update = Vec<InputActions>;
+    type Initialize = Initialize<I, C>;
+    type Update = Update<I>;
     type Draw = ();
-    type UpdateBatch = ();
+    type UpdateBatch = Vec<UpdateAction>;
     type DrawBatch = DrawBatch<Draw, ()>;
 
-    fn initialize(&mut self, init: &Self::Initialize) {
-        self.controls.forward = init.0.users[0].get_index_by_key("Forward").unwrap();
-        self.controls.backward = init.0.users[0].get_index_by_key("Backward").unwrap();
-        self.controls.look = init.0.users[0].get_index_by_key("Look").unwrap();
-        self.controls.pause = init.0.users[0].get_index_by_key("Pause").unwrap();
+    fn initialize(&mut self, init: &mut Self::Initialize) {
+        self.controls.forward = init.input.users[0].get_index_by_key("Forward").unwrap();
+        self.controls.backward = init.input.users[0].get_index_by_key("Backward").unwrap();
+        self.controls.look = init.input.users[0].get_index_by_key("Look").unwrap();
+        self.controls.pause = init.input.users[0].get_index_by_key("Pause").unwrap();
 
         self.logo = Some(Logo {
             texture: init
-                .1
+                .content
                 .get_ticket_with_key(&StorageType::Texture, "Logo.png")
                 .unwrap(),
             position: (400.0, 300.0),
         });
+
+        self.music = Some(
+            init.content
+                .get_ticket_with_key(&StorageType::Music, "Music.wav")
+                .unwrap(),
+        );
     }
 
-    fn update(&mut self, update: &Self::Update, delta: f64) {
+    fn update(&mut self, update: &Self::Update, delta: f64) -> Vec<UpdateAction> {
+        let mut actions = Vec::new();
+
+        for info in update.info.iter() {
+            match info {
+                UpdateInfo::MusicStopped => {
+                    actions.push(UpdateAction::PlayMusic(self.music.unwrap(), -1, 0.25))
+                }
+                _ => {}
+            }
+        }
+
         let direction = (0.0, SPEED * delta as f32);
 
         if let Some(logo) = &mut self.logo {
             let position = logo.position;
 
-            let x = update[0]
+            if update.input.users[0]
                 .get_action_by_index(self.controls.forward)
-                .unwrap();
-            if x.is_down() {
+                .unwrap()
+                .is_down()
+            {
                 logo.position = (position.0 + direction.0, position.1 + direction.1);
             }
 
-            if update[0]
+            if update.input.users[0]
                 .get_action_by_index(self.controls.backward)
                 .unwrap()
                 .is_down()
@@ -94,6 +116,8 @@ where
                 logo.position = (position.0 - direction.0, position.1 - direction.1);
             }
         }
+
+        actions
     }
 
     fn draw(&self, draw: &Self::Draw, interp: f64) -> Self::DrawBatch {

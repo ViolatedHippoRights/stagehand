@@ -12,9 +12,10 @@ use std::rc::Rc;
 use crate::{
     app::App,
     draw::{Draw, DrawBatch, DrawData, DrawDestination},
-    input::{ActionState, ActionType, InputActions, InputError, InputMap},
-    loading::ResourceError,
+    input::{ActionState, ActionType, InputError, InputMap},
+    loading::{ResourceError, Ticket},
     scene::Scene,
+    utility2d::{Initialize, Update, UpdateAction, UpdateInfo},
     Stage, StageError,
 };
 
@@ -28,9 +29,9 @@ pub mod loading;
 pub struct SDLApp<'a> {
     stage: Stage<
         'a,
-        (InputMap<SDLCommand>, SDLStorage<'a>),
-        Vec<InputActions>,
-        (),
+        Initialize<SDLCommand, SDLStorage<'a>>,
+        Update<SDLCommand>,
+        Vec<UpdateAction>,
         (),
         DrawBatch<Draw, ()>,
     >,
@@ -38,7 +39,7 @@ pub struct SDLApp<'a> {
     sdl: Sdl,
     canvas: Canvas<Window>,
 
-    input: InputMap<SDLCommand>,
+    update: Update<SDLCommand>,
 
     storage: SDLStorage<'a>,
 
@@ -60,7 +61,10 @@ impl<'a> SDLApp<'a> {
             sdl,
             canvas,
 
-            input,
+            update: Update {
+                input,
+                info: Vec::new(),
+            },
 
             storage,
 
@@ -72,15 +76,28 @@ impl<'a> SDLApp<'a> {
         &mut self,
         scene: Box<
             dyn Scene<
-                    Initialize = (InputMap<SDLCommand>, SDLStorage<'a>),
-                    Update = Vec<InputActions>,
+                    Initialize = Initialize<SDLCommand, SDLStorage<'a>>,
+                    Update = Update<SDLCommand>,
                     Draw = (),
-                    UpdateBatch = (),
+                    UpdateBatch = Vec<UpdateAction>,
                     DrawBatch = DrawBatch<Draw, ()>,
                 > + 'a,
         >,
     ) {
         self.stage.push_scene(scene);
+    }
+
+    fn play_music(&mut self, ticket: Ticket, loops: i32, volume: f32) {
+        match self.storage.music.get_by_ticket(ticket) {
+            Ok(m) => {
+                sdl2::mixer::Music::set_volume((volume * sdl2::mixer::MAX_VOLUME as f32) as i32);
+                match m.play(loops) {
+                    Ok(()) => {}
+                    Err(e) => error!("Error playing music: {}", e),
+                }
+            }
+            Err(e) => ResourceError::log_failure(e),
+        }
     }
 
     fn render_texture(&mut self, texture: Rc<Texture<'_>>, data: &DrawData) {
@@ -150,7 +167,7 @@ impl<'a> App for SDLApp<'a> {
 
         let keys = events.keyboard_state();
 
-        for command_options in self.input.commands.iter() {
+        for command_options in self.update.input.commands.iter() {
             let mut active = ActionType::Digital(ActionState::Up);
             'commands: for command in command_options.commands.iter() {
                 match command {
@@ -166,7 +183,7 @@ impl<'a> App for SDLApp<'a> {
                 };
             }
 
-            match self.input.users[command_options.user_index]
+            match self.update.input.users[command_options.user_index]
                 .update_action(command_options.action_index, active)
             {
                 Err(e) => match e {
@@ -183,8 +200,25 @@ impl<'a> App for SDLApp<'a> {
     }
 
     fn update(&mut self, delta: f64) {
-        match self.stage.update(&self.input.users, delta) {
-            Ok(_v) => {}
+        self.update.info.clear();
+
+        if !sdl2::mixer::Music::is_playing() {
+            self.update.info.push(UpdateInfo::MusicStopped);
+        }
+
+        match self.stage.update(&self.update, delta) {
+            Ok(v) => {
+                for batch in v.iter() {
+                    for command in batch.iter() {
+                        match command {
+                            UpdateAction::PlayMusic(ticket, loops, volume) => {
+                                self.play_music(*ticket, *loops, *volume)
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
             Err(e) => match e {
                 StageError::NoScenesToUpdateError => warn!("Stage has no scenes to update."),
                 _ => {}

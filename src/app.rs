@@ -11,7 +11,7 @@ pub trait App {
 }
 
 pub fn gameloop<T: App>(app: &mut T, fps: i32) -> Result<(), T::EventError> {
-    //We do not do 1/fps because of the difference between 16 and 16.6...
+    //We do not do 1/fps for delta because of the difference between 16 and 16.6...
     //Probably not a major difference
     let step = 1000 / fps as u64;
     let delta = step as f64 / 1000.0;
