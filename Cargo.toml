@@ -10,11 +10,12 @@ log = "0.4"
 
 [features]
 default = []
-2d = ["draw2d", "input"]
+2d = ["draw2d", "input", "utility"]
 draw2d = ["loading"]
 example = ["2d"]
 input = []
 loading = ["dep:uuid"]
+utility = []
 
 [dependencies.uuid]
 version = "1.7.0"

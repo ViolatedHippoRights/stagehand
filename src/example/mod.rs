@@ -1,12 +1,15 @@
 use std::marker::PhantomData;
 
 use crate::{
-    draw::{Draw, DrawBatch, DrawData},
+    draw::{Draw, DrawBatch, DrawData, DrawType},
     input::ActionType,
     loading::{Ticket, TicketManager},
     scene::Scene,
-    utility2d::{Initialize, StorageType, Update, UpdateAction, UpdateInfo},
+    utility::{Initialize, StorageType, Update, UpdateInfo, UpdateInstruction},
+    Response,
 };
+
+pub mod ui;
 
 pub const WINDOW_WIDTH: u32 = 800;
 pub const WINDOW_HEIGHT: u32 = 600;
@@ -62,10 +65,12 @@ impl<I, S> Scene for ExampleScene<I, S>
 where
     S: TicketManager<StorageType, StorageType, String, str>,
 {
+    type Key = String;
     type Initialize = Initialize<I, S, ()>;
     type Update = Update<I, ()>;
+    type Message = String;
+    type Instruction = UpdateInstruction;
     type Draw = ();
-    type UpdateBatch = Vec<UpdateAction>;
     type DrawBatch = DrawBatch<Draw, ()>;
 
     fn initialize(&mut self, init: &mut Self::Initialize) {
@@ -95,14 +100,18 @@ where
         );
     }
 
-    fn update(&mut self, update: &Self::Update, delta: f64) -> Vec<UpdateAction> {
+    fn update(
+        &mut self,
+        update: &Self::Update,
+        delta: f64,
+    ) -> Vec<Response<Self::Key, Self::Message, Self::Instruction>> {
         let mut actions = Vec::new();
 
         for info in update.info.iter() {
             match info {
-                UpdateInfo::MusicStopped => {
-                    actions.push(UpdateAction::PlayMusic(self.music.unwrap(), -1, 0.25))
-                }
+                UpdateInfo::MusicStopped => actions.push(Response::Instruction(
+                    UpdateInstruction::PlayMusic(self.music.unwrap(), -1, 0.25),
+                )),
             }
         }
 
@@ -145,7 +154,11 @@ where
                 || logo.position.1 < 0.0
                 || logo.position.1 > WINDOW_HEIGHT as f32
             {
-                actions.push(UpdateAction::PlaySound(self.oob.unwrap(), 1.0));
+                actions.push(Response::Message("UI".to_string(), "Collision".to_string()));
+                actions.push(Response::Instruction(UpdateInstruction::PlaySound(
+                    self.oob.unwrap(),
+                    1.0,
+                )));
             }
 
             logo.position = (
@@ -166,6 +179,7 @@ where
 
             batch.instructions.push(Draw {
                 ticket: logo.texture,
+                draw_type: DrawType::Texture,
                 data: DrawData::draw_rotated_at(
                     logo.position.0,
                     logo.position.1,
@@ -177,6 +191,8 @@ where
 
         batch
     }
+
+    fn receive_message(&mut self, _message: &Self::Message) {}
 
     fn covering(&self) -> bool {
         return true;

@@ -5,6 +5,7 @@ use crate::{input::InputMap, loading::Ticket};
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub enum StorageType {
     Data,
+    Font,
     Music,
     Sound,
     Texture,
@@ -17,6 +18,7 @@ impl fmt::Display for StorageType {
             "{}",
             match self {
                 StorageType::Data => "Data",
+                StorageType::Font => "Font",
                 StorageType::Music => "Music",
                 StorageType::Sound => "Sound",
                 StorageType::Texture => "Texture",
@@ -51,7 +53,7 @@ pub enum UpdateInfo {
     MusicStopped,
 }
 
-pub enum UpdateAction {
+pub enum UpdateInstruction {
     PlayMusic(Ticket, i32, f32),
     PlaySound(Ticket, f32),
 }

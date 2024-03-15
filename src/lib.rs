@@ -1,8 +1,10 @@
+use std::{collections::HashMap, hash::Hash};
+
 pub mod app;
 pub mod scene;
 
-#[cfg(feature = "2d")]
-pub mod utility2d;
+#[cfg(feature = "utility")]
+pub mod utility;
 
 #[cfg(feature = "draw2d")]
 pub mod draw;
@@ -18,55 +20,119 @@ pub mod loading;
 
 use scene::Scene;
 
-pub struct Stage<'a, I, U, UB, D, DB> {
-    scenes: Vec<
-        Box<dyn Scene<Initialize = I, Update = U, Draw = D, UpdateBatch = UB, DrawBatch = DB> + 'a>,
+pub struct Stage<'a, Key, Initialize, Update, Message, Instruction, Draw, DrawBatch>
+where
+    Key: Hash + Eq + ToString,
+{
+    scenes: HashMap<
+        Key,
+        Box<
+            dyn Scene<
+                    Key = Key,
+                    Initialize = Initialize,
+                    Update = Update,
+                    Draw = Draw,
+                    Message = Message,
+                    Instruction = Instruction,
+                    DrawBatch = DrawBatch,
+                > + 'a,
+        >,
     >,
+    active: Vec<Key>,
 }
 
-impl<'a, I, U, UB, D, DB> Stage<'a, I, U, UB, D, DB> {
+pub enum Response<Key, Message, Instruction> {
+    Message(Key, Message),
+    Instruction(Instruction),
+}
+
+impl<'a, Key, Initialize, Update, Message, Instruction, Draw, DrawBatch>
+    Stage<'a, Key, Initialize, Update, Message, Instruction, Draw, DrawBatch>
+where
+    Key: Clone + Hash + Eq + ToString,
+{
     pub fn new() -> Self {
-        Stage { scenes: Vec::new() }
+        Stage {
+            scenes: HashMap::new(),
+            active: Vec::new(),
+        }
     }
 
-    pub fn push_scene(
+    pub fn add_scene(
         &mut self,
+        key: Key,
         scene: Box<
-            dyn Scene<Initialize = I, Update = U, Draw = D, UpdateBatch = UB, DrawBatch = DB> + 'a,
+            dyn Scene<
+                    Key = Key,
+                    Initialize = Initialize,
+                    Update = Update,
+                    Draw = Draw,
+                    Message = Message,
+                    Instruction = Instruction,
+                    DrawBatch = DrawBatch,
+                > + 'a,
         >,
+        active: bool,
     ) {
-        self.scenes.push(scene);
+        if active {
+            self.active.push(key.clone());
+        }
+
+        self.scenes.insert(key, scene);
     }
 
-    pub fn update(&mut self, update: &U, delta: f64) -> Result<Vec<UB>, StageError> {
+    pub fn update(&mut self, update: &Update, delta: f64) -> Result<Vec<Instruction>, StageError> {
         if self.scenes.len() > 0 {
-            let mut batches = Vec::new();
+            let mut instructions = Vec::new();
 
-            let mut i = self.scenes.len() - 1;
-            batches.push(self.scenes[i].update(update, delta));
-
-            while i > 0 && !self.scenes[i].blocking() {
-                i -= 1;
-                batches.push(self.scenes[i].update(update, delta));
+            let mut start = self.scenes.len() - 1;
+            while start > 0 && !self.scenes[&self.active[start]].blocking() {
+                start -= 1;
             }
 
-            return Ok(batches);
+            for i in start..self.scenes.len() {
+                match self.scenes.get_mut(&self.active[i]) {
+                    Some(scene) => {
+                        let responses = scene.update(update, delta);
+                        for response in responses.into_iter() {
+                            match response {
+                                Response::Message(k, m) => match self.scenes.get_mut(&k) {
+                                    Some(s) => s.receive_message(&m),
+                                    None => {
+                                        return Err(StageError::MessageSceneNotFoundError(
+                                            self.active[i].to_string(),
+                                        ));
+                                    }
+                                },
+                                Response::Instruction(i) => instructions.push(i),
+                            }
+                        }
+                    }
+                    None => {
+                        return Err(StageError::UpdateSceneNotFoundError(
+                            self.active[i].to_string(),
+                        ));
+                    }
+                }
+            }
+
+            return Ok(instructions);
         }
 
         Err(StageError::NoScenesToUpdateError)
     }
 
-    pub fn draw(&self, draw: &D, interp: f64) -> Result<Vec<DB>, StageError> {
+    pub fn draw(&self, draw: &Draw, interp: f64) -> Result<Vec<DrawBatch>, StageError> {
         if self.scenes.len() > 0 {
-            let mut batches: Vec<DB> = Vec::new();
+            let mut batches: Vec<DrawBatch> = Vec::new();
 
             let mut start = self.scenes.len() - 1;
-            while start > 0 && !self.scenes[start].covering() {
+            while start > 0 && !self.scenes[&self.active[start]].covering() {
                 start -= 1;
             }
 
             for i in start..self.scenes.len() {
-                batches.push(self.scenes[i].draw(draw, interp));
+                batches.push(self.scenes[&self.active[i]].draw(draw, interp));
             }
 
             return Ok(batches);
@@ -80,4 +146,6 @@ impl<'a, I, U, UB, D, DB> Stage<'a, I, U, UB, D, DB> {
 pub enum StageError {
     NoScenesToUpdateError,
     NoScenesToDrawError,
+    UpdateSceneNotFoundError(String),
+    MessageSceneNotFoundError(String),
 }
