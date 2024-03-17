@@ -12,6 +12,10 @@ impl ActionState {
     pub fn is_down(&self) -> bool {
         *self == ActionState::Down || *self == ActionState::Pressed
     }
+
+    pub fn is_delta(&self) -> bool {
+        *self == ActionState::Pressed || *self == ActionState::Released
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -28,10 +32,14 @@ impl ActionType {
         }
     }
 
-    pub fn update(old: ActionType, new: ActionType) -> ActionType {
+    pub fn update(old: ActionType, new: ActionType, updated: bool) -> ActionType {
         match new {
             ActionType::Digital(new_action) => match old {
                 ActionType::Digital(old_action) => {
+                    if !updated && old_action.is_delta() {
+                        return old;
+                    }
+
                     match (old_action.is_down(), new_action.is_down()) {
                         (true, true) => ActionType::Digital(ActionState::Down),
                         (true, false) => ActionType::Digital(ActionState::Released),
@@ -52,6 +60,7 @@ impl ActionType {
 pub struct InputActions {
     actions: Vec<ActionType>,
     action_map: HashMap<String, usize>,
+    updated: bool,
 }
 
 impl InputActions {
@@ -59,6 +68,7 @@ impl InputActions {
         InputActions {
             actions: Vec::new(),
             action_map: HashMap::new(),
+            updated: false,
         }
     }
 
@@ -76,9 +86,17 @@ impl InputActions {
             return Err(InputError::ActionIndexOutOfBounds);
         }
 
-        self.actions[index] = ActionType::update(self.actions[index], new);
+        self.actions[index] = ActionType::update(self.actions[index], new, self.updated);
 
         Ok(())
+    }
+
+    pub fn updated(&mut self) {
+        self.updated = true;
+    }
+
+    pub fn set(&mut self) {
+        self.updated = false;
     }
 
     pub fn get_index_by_key(&self, key: &str) -> Result<usize, InputError> {
@@ -124,6 +142,18 @@ impl<C> InputMap<C> {
         self.users.push(InputActions::new());
 
         self.users.len() - 1
+    }
+
+    pub fn updated(&mut self) {
+        for user in self.users.iter_mut() {
+            user.updated();
+        }
+    }
+
+    pub fn set(&mut self) {
+        for user in self.users.iter_mut() {
+            user.set();
+        }
     }
 
     pub fn add_action(

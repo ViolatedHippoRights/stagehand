@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use crate::{
     draw::{Draw, DrawBatch, DrawData, DrawType},
-    input::ActionType,
+    input::{ActionState, ActionType},
     loading::{Ticket, TicketManager},
     scene::Scene,
     utility::{Initialize, StorageType, Update, UpdateInfo, UpdateInstruction},
@@ -37,6 +37,8 @@ pub struct ExampleScene<I, S> {
     music: Option<Ticket>,
     oob: Option<Ticket>,
 
+    ui: bool,
+
     phantom: PhantomData<(I, S)>,
 }
 
@@ -55,6 +57,8 @@ impl<I, S> ExampleScene<I, S> {
 
             music: None,
             oob: None,
+
+            ui: true,
 
             phantom: PhantomData,
         }
@@ -165,6 +169,22 @@ where
                 logo.position.0.clamp(0.0, WINDOW_WIDTH as f32),
                 logo.position.1.clamp(0.0, WINDOW_HEIGHT as f32),
             );
+
+            match update.input.users[0]
+                .get_action_by_index(self.controls.pause)
+                .unwrap()
+            {
+                ActionType::Digital(s) => {
+                    if s == ActionState::Pressed {
+                        self.ui = !self.ui;
+                        match self.ui {
+                            true => actions.push(Response::AddScene("UI".to_string())),
+                            false => actions.push(Response::RemoveScene("UI".to_string())),
+                        }
+                    }
+                }
+                _ => {}
+            };
         }
 
         actions

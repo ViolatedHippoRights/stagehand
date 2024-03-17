@@ -9,7 +9,7 @@ use crate::{
 };
 
 pub struct UIScene<I, S> {
-    input: (String, String),
+    input: (String, String, String),
     font: Option<Ticket>,
 
     collision: u32,
@@ -23,6 +23,7 @@ impl<I, S> UIScene<I, S> {
             input: (
                 "W/Shift+Up/LMB/DPad Up to move forward".to_string(),
                 "S/Shift+Down/RMB/DPad Down to move backward".to_string(),
+                "Esc/MMB/A to toggle UI".to_string(),
             ),
             font: None,
 
@@ -81,6 +82,11 @@ where
                     ticket: f,
                     data: DrawData::draw_centered_at((super::WINDOW_WIDTH / 2) as f32, 150.0),
                     draw_type: DrawType::Text(self.input.1.clone(), color),
+                });
+                batch.instructions.push(Draw {
+                    ticket: f,
+                    data: DrawData::draw_centered_at((super::WINDOW_WIDTH / 2) as f32, 200.0),
+                    draw_type: DrawType::Text(self.input.2.clone(), color),
                 });
                 batch.instructions.push(Draw {
                     ticket: f,

@@ -44,6 +44,8 @@ where
 pub enum Response<Key, Message, Instruction> {
     Message(Key, Message),
     Instruction(Instruction),
+    AddScene(Key),
+    RemoveScene(Key),
 }
 
 impl<'a, Key, Initialize, Update, Message, Instruction, Draw, DrawBatch>
@@ -82,15 +84,18 @@ where
     }
 
     pub fn update(&mut self, update: &Update, delta: f64) -> Result<Vec<Instruction>, StageError> {
-        if self.scenes.len() > 0 {
+        if self.active.len() > 0 {
             let mut instructions = Vec::new();
 
-            let mut start = self.scenes.len() - 1;
+            let mut start = self.active.len() - 1;
             while start > 0 && !self.scenes[&self.active[start]].blocking() {
                 start -= 1;
             }
 
-            for i in start..self.scenes.len() {
+            let mut add: Vec<Key> = Vec::new();
+            let mut remove: Vec<Key> = Vec::new();
+
+            for i in start..self.active.len() {
                 match self.scenes.get_mut(&self.active[i]) {
                     Some(scene) => {
                         let responses = scene.update(update, delta);
@@ -104,6 +109,8 @@ where
                                         ));
                                     }
                                 },
+                                Response::AddScene(k) => add.push(k),
+                                Response::RemoveScene(k) => remove.push(k),
                                 Response::Instruction(i) => instructions.push(i),
                             }
                         }
@@ -116,6 +123,13 @@ where
                 }
             }
 
+            self.active.retain(|s| !remove.contains(s));
+            for scene in add.into_iter() {
+                if !self.active.contains(&scene) {
+                    self.active.push(scene);
+                }
+            }
+
             return Ok(instructions);
         }
 
@@ -123,15 +137,15 @@ where
     }
 
     pub fn draw(&self, draw: &Draw, interp: f64) -> Result<Vec<DrawBatch>, StageError> {
-        if self.scenes.len() > 0 {
+        if self.active.len() > 0 {
             let mut batches: Vec<DrawBatch> = Vec::new();
 
-            let mut start = self.scenes.len() - 1;
+            let mut start = self.active.len() - 1;
             while start > 0 && !self.scenes[&self.active[start]].covering() {
                 start -= 1;
             }
 
-            for i in start..self.scenes.len() {
+            for i in start..self.active.len() {
                 batches.push(self.scenes[&self.active[i]].draw(draw, interp));
             }
 
