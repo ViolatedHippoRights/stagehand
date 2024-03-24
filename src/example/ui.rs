@@ -22,7 +22,7 @@ impl<I, S> UIScene<I, S> {
         UIScene {
             input: (
                 "W/Shift+Up/LMB/DPad Up to move forward".to_string(),
-                "S/Shift+Down/RMB/DPad Down to move backward".to_string(),
+                "S/Shift+Down/RMB/Dpad Down to move backward".to_string(),
                 "Esc/MMB/A to toggle UI".to_string(),
             ),
             font: None,

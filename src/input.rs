@@ -21,6 +21,7 @@ impl ActionState {
 #[derive(Clone, Copy)]
 pub enum ActionType {
     Digital(ActionState),
+    Axis(f32),
     Analog { x: f32, y: f32 },
 }
 
@@ -28,7 +29,7 @@ impl ActionType {
     pub fn is_down(&self) -> bool {
         match self {
             ActionType::Digital(state) => ActionState::is_down(&state),
-            ActionType::Analog { x: _, y: _ } => false,
+            _ => false,
         }
     }
 

@@ -128,10 +128,15 @@ where
                 .get_action_by_index(self.controls.look)
                 .unwrap()
             {
-                let (relative_x, relative_y) = (x - position.0, y - position.1);
-                let length = f32::sqrt(relative_x * relative_x + relative_y * relative_y);
+                //Dirty toggle between mouse and stick
+                if x.abs() >= 1.1 || y.abs() >= 1.1 {
+                    let (relative_x, relative_y) = (x - position.0, y - position.1);
+                    let length = f32::sqrt(relative_x * relative_x + relative_y * relative_y);
 
-                self.direction = (relative_x / length, relative_y / length);
+                    self.direction = (relative_x / length, relative_y / length);
+                } else {
+                    self.direction = (x, y);
+                }
             }
 
             let multiplier = SPEED * delta as f32;
