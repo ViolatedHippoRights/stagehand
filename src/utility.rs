@@ -1,4 +1,5 @@
 use core::fmt;
+use std::{cell::RefCell, rc::Rc};
 
 use crate::{input::InputMap, loading::Ticket};
 
@@ -28,14 +29,18 @@ impl fmt::Display for StorageType {
 }
 
 pub struct Initialize<I, S, C> {
-    pub input: InputMap<I>,
-    pub storage: S,
-    pub content: C,
+    pub input: Rc<RefCell<InputMap<I>>>,
+    pub storage: Rc<RefCell<S>>,
+    pub content: Rc<RefCell<C>>,
 }
 
 impl<I, S, C> Initialize<I, S, C> {
-    pub fn new(input: InputMap<I>, storage: S, content: C) -> Self {
-        Initialize {
+    pub fn new(
+        input: Rc<RefCell<InputMap<I>>>,
+        storage: Rc<RefCell<S>>,
+        content: Rc<RefCell<C>>,
+    ) -> Self {
+        Self {
             input,
             storage,
             content,
@@ -44,9 +49,23 @@ impl<I, S, C> Initialize<I, S, C> {
 }
 
 pub struct Update<I, C> {
-    pub input: InputMap<I>,
-    pub info: Vec<UpdateInfo>,
-    pub content: C,
+    pub input: Rc<RefCell<InputMap<I>>>,
+    pub info: Rc<RefCell<Vec<UpdateInfo>>>,
+    pub content: Rc<RefCell<C>>,
+}
+
+impl<I, C> Update<I, C> {
+    pub fn new(
+        input: Rc<RefCell<InputMap<I>>>,
+        info: Rc<RefCell<Vec<UpdateInfo>>>,
+        content: Rc<RefCell<C>>,
+    ) -> Self {
+        Self {
+            input,
+            info,
+            content,
+        }
+    }
 }
 
 pub enum UpdateInfo {

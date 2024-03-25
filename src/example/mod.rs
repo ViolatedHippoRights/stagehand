@@ -78,27 +78,28 @@ where
     type DrawBatch = DrawBatch<Draw, ()>;
 
     fn initialize(&mut self, init: &mut Self::Initialize) {
-        self.controls.forward = init.input.users[0].get_index_by_key("Forward").unwrap();
-        self.controls.backward = init.input.users[0].get_index_by_key("Backward").unwrap();
-        self.controls.look = init.input.users[0].get_index_by_key("Look").unwrap();
-        self.controls.pause = init.input.users[0].get_index_by_key("Pause").unwrap();
+        let input = init.input.borrow();
+        self.controls.forward = input.users[0].get_index_by_key("Forward").unwrap();
+        self.controls.backward = input.users[0].get_index_by_key("Backward").unwrap();
+        self.controls.look = input.users[0].get_index_by_key("Look").unwrap();
+        self.controls.pause = input.users[0].get_index_by_key("Pause").unwrap();
 
+        let storage = init.storage.borrow();
         self.logo = Some(Logo {
-            texture: init
-                .storage
+            texture: storage
                 .get_ticket_with_key(&StorageType::Texture, "Logo.png")
                 .unwrap(),
             position: (WINDOW_WIDTH as f32 * 0.5, WINDOW_HEIGHT as f32 * 0.5),
         });
 
         self.music = Some(
-            init.storage
+            storage
                 .get_ticket_with_key(&StorageType::Music, "Music.wav")
                 .unwrap(),
         );
 
         self.oob = Some(
-            init.storage
+            storage
                 .get_ticket_with_key(&StorageType::Sound, "OoB.wav")
                 .unwrap(),
         );
@@ -111,7 +112,8 @@ where
     ) -> Vec<Response<Self::Key, Self::Message, Self::Instruction>> {
         let mut actions = Vec::new();
 
-        for info in update.info.iter() {
+        let info = update.info.borrow();
+        for info in info.iter() {
             match info {
                 UpdateInfo::MusicStopped => actions.push(Response::Instruction(
                     UpdateInstruction::PlayMusic(self.music.unwrap(), -1, 0.25),
@@ -124,7 +126,9 @@ where
 
             self.direction = (0.0, 1.0);
 
-            if let ActionType::Analog { x, y } = update.input.users[0]
+            let input = update.input.borrow();
+
+            if let ActionType::Analog { x, y } = input.users[0]
                 .get_action_by_index(self.controls.look)
                 .unwrap()
             {
@@ -142,7 +146,7 @@ where
             let multiplier = SPEED * delta as f32;
             let direction = (self.direction.0 * multiplier, self.direction.1 * multiplier);
 
-            if update.input.users[0]
+            if input.users[0]
                 .get_action_by_index(self.controls.forward)
                 .unwrap()
                 .is_down()
@@ -150,7 +154,7 @@ where
                 logo.position = (position.0 + direction.0, position.1 + direction.1);
             }
 
-            if update.input.users[0]
+            if input.users[0]
                 .get_action_by_index(self.controls.backward)
                 .unwrap()
                 .is_down()
@@ -175,7 +179,7 @@ where
                 logo.position.1.clamp(0.0, WINDOW_HEIGHT as f32),
             );
 
-            match update.input.users[0]
+            match input.users[0]
                 .get_action_by_index(self.controls.pause)
                 .unwrap()
             {

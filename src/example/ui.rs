@@ -47,8 +47,9 @@ where
     type DrawBatch = DrawBatch<Draw, ()>;
 
     fn initialize(&mut self, init: &mut Self::Initialize) {
+        let storage = init.storage.borrow();
         self.font = Some(
-            init.storage
+            storage
                 .get_ticket_with_key(&StorageType::Font, "Napalm.ttf")
                 .unwrap(),
         );
